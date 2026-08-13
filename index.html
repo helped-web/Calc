@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Прайс-калькулятор сервисного центра</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0F1216" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+<style>
+  :root {
+    --bg:#0F1216; --panel:#161A20; --panelAlt:#1B2028; --border:#262C35; --borderSoft:#20252D;
+    --text:#E9EBEE; --textMuted:#8A93A1; --textFaint:#5B6472; --accent:#4FD8C4; --accentDim:#2E8A7C; --red:#F16063;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); }
+  body { font-family: Manrope, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--text); }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 16px 48px; }
+  .eyebrow { color: var(--accent); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+  h1 { font-size: 28px; margin: 0 0 4px; font-weight: 700; }
+  .sub { color: var(--textMuted); font-size: 14px; margin: 0 0 24px; }
+  .grid { display: grid; gap: 20px; }
+  @media (min-width: 768px) { .grid { grid-template-columns: 1fr 320px; align-items: start; } .ticket-col { position: sticky; top: 28px; } }
+  .section { background: var(--panel); border: 1px solid var(--borderSoft); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .section-label { display:flex; align-items:center; gap:8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color: var(--accent); font-weight:600; }
+  .dot { width:6px; height:6px; border-radius:50%; background: var(--accent); display:inline-block; }
+  label.field { display:flex; flex-direction:column; gap:6px; }
+  .field-label { font-size:12px; text-transform:uppercase; letter-spacing:.02em; color: var(--textMuted); font-weight:600; }
+  .input-row { display:flex; align-items:center; background: var(--panelAlt); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .input-row input { flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--text); font-size:16px; padding:10px 12px; }
+  .input-row span { padding:0 12px; font-size:13px; color: var(--textFaint); white-space:nowrap; }
+  .hint { font-size:12px; color: var(--textFaint); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; padding:9px 6px; font-size:12px; font-weight:600; border-radius:10px; border:1px solid var(--border); background:var(--panelAlt); color:var(--textMuted); cursor:pointer; }
+  .seg button.active { background: var(--accentDim); color:#EAFBF8; border-color: var(--accent); }
+  .ticket { background: var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px; }
+  .ticket-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .ticket-no { font-size:12px; color: var(--textFaint); }
+  .pulse { width:8px; height:8px; border-radius:50%; background: var(--accent); animation: pulseDot 1.8s infinite; }
+  @keyframes pulseDot { 0%,100%{ box-shadow:0 0 0 0 rgba(79,216,196,.55); } 70%{ box-shadow:0 0 0 6px rgba(79,216,196,0);} }
+  #serviceName { width:100%; background:transparent; border:none; outline:none; color:var(--text); font-weight:600; font-size:14px; margin-bottom:16px; }
+  .dashed { border-top:2px dashed var(--borderSoft); margin-bottom:16px; }
+  .price-label { font-size:12px; text-transform:uppercase; color: var(--textMuted); margin-bottom:4px; }
+  .price { font-size:36px; font-weight:700; color: var(--accent); margin-bottom:16px; }
+  .price small { font-size:18px; }
+  .error-box { color: var(--red); background: rgba(241,96,99,.1); border:1px solid var(--red); border-radius:10px; padding:12px; font-size:14px; margin-bottom:16px; }
+  .toggle-btn { background:none; border:none; color: var(--textFaint); font-size:12px; font-weight:600; cursor:pointer; padding:0; }
+  .breakdown { margin-top:12px; display:flex; flex-direction:column; gap:6px; font-size:12px; }
+  .breakdown .r { display:flex; justify-content:space-between; }
+  .breakdown .r span:first-child { color: var(--textFaint); }
+  .breakdown .r span:last-child { color: var(--textMuted); }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { opacity:.5; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">⌁ сервис-центр · ремонт техники</div>
+  <h1 class="mono">Прайс-калькулятор</h1>
+  <p class="sub">Себестоимость заказа → цена для клиента, в белорусских рублях.</p>
+
+  <div class="grid">
+    <div>
+      <div class="section">
+        <div class="section-label"><span class="dot"></span>Мастер</div>
+        <div class="seg" id="masterSeg">
+          <button data-type="margin_share" class="active">% от маржи</button>
+          <button data-type="hourly">Почасовая</button>
+          <button data-type="piece">Сдельная</button>
+        </div>
+
+        <div id="masterMarginBlock">
+          <label class="field">
+            <span class="field-label">Доля мастера от маржи</span>
+            <div class="input-row"><input type="number" min="0" id="masterMarginShare" value="30"><span>% от маржи</span></div>
+            <span class="hint">Мастер получает эту долю от заложенной в цену маржи, остальное — ваша прибыль</span>
+          </label>
+        </div>
+        <div id="hourlyBlock" class="hidden row2">
+          <label class="field"><span class="field-label">Ставка</span><div class="input-row"><input type="number" min="0" id="hourlyRate" value="25"><span>BYN/ч</span></div></label>
+          <label class="field"><span class="field-label">Время ремонта</span><div class="input-row"><input type="number" min="0" id="hours" value="1"><span>ч</span></div></label>
+        </div>
+        <div id="pieceBlock" class="hidden">
+          <label class="field"><span class="field-label">Оплата мастеру за заказ</span><div class="input-row"><input type="number" min="0" id="pieceRate" value="50"><span>BYN</span></div></label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label"><span class="dot"></span>Запчасти</div>
+        <label class="field"><span class="field-label">Стоимость запчастей и материалов</span><div class="input-row"><input type="number" min="0" id="partsCost" value="100"><span>BYN</span></div></label>
+      </div>
+
+      <div class="section">
+        <div class="section-label"><span class="dot"></span>Аренда и коммунальные</div>
+        <div class="row2">
+          <label class="field"><span class="field-label">Аренда</span><div class="input-row"><input type="number" min="0" id="rentMonthly" value="2000"><span>BYN/мес</span></div></label>
+          <label class="field"><span class="field-label">Заказов</span><div class="input-row"><input type="number" min="0" id="ordersMonthly" value="120"><span>в мес</span></div></label>
+        </div>
+        <span class="hint" id="rentHint">≈ 16.67 BYN накладных на один заказ</span>
+      </div>
+
+      <div class="section">
+        <div class="section-label"><span class="dot"></span>Налоги и комиссии</div>
+        <div class="row2">
+          <label class="field"><span class="field-label">Налог</span><div class="input-row"><input type="number" min="0" id="taxPercent" value="6"><span>% от цены</span></div></label>
+          <label class="field"><span class="field-label">Эквайринг</span><div class="input-row"><input type="number" min="0" id="acquiringPercent" value="2"><span>% от цены</span></div></label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label"><span class="dot"></span>Маржа</div>
+        <label class="field">
+          <span class="field-label">Целевая маржа</span>
+          <div class="input-row"><input type="number" min="0" id="marginPercent" value="20"><span>% от цены</span></div>
+          <span class="hint" id="marginHint">Общая маржа заказа — из неё мастер получит свою долю</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="ticket-col">
+      <div class="ticket">
+        <div class="ticket-top">
+          <span class="ticket-no mono" id="ticketNo">ТИКЕТ №0000</span>
+          <span class="pulse"></span>
+        </div>
+        <input id="serviceName" placeholder="Ремонт техники" />
+        <div class="dashed"></div>
+        <div id="priceBlock">
+          <div class="price-label mono">Цена для клиента</div>
+          <div class="price mono" id="priceOut">0 <small>BYN</small></div>
+        </div>
+        <div id="errorBlock" class="error-box hidden">Налог + эквайринг + маржа ≥ 100%. Снизьте проценты, чтобы цену можно было рассчитать.</div>
+        <button class="toggle-btn" id="toggleBreakdown">Показать расчёт ▾</button>
+        <div class="breakdown hidden mono" id="breakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const num = (id) => { const v = $(id).value; return v === "" ? 0 : (Number(v) || 0); };
+  const fmt = (n) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(Math.round((n || 0) * 100) / 100);
+
+  let masterType = "margin_share";
+  let showBreakdown = false;
+
+  $("ticketNo").textContent = "ТИКЕТ №" + String(Math.floor(1000 + Math.random() * 8999));
+
+  document.querySelectorAll("#masterSeg button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      masterType = btn.dataset.type;
+      document.querySelectorAll("#masterSeg button").forEach((b) => b.classList.toggle("active", b === btn));
+      $("masterMarginBlock").classList.toggle("hidden", masterType !== "margin_share");
+      $("hourlyBlock").classList.toggle("hidden", masterType !== "hourly");
+      $("pieceBlock").classList.toggle("hidden", masterType !== "piece");
+      $("marginHint").textContent = masterType === "margin_share"
+        ? "Общая маржа заказа — из неё мастер получит свою долю"
+        : "Ваша прибыль как доля от итоговой цены клиенту";
+      calc();
+    });
+  });
+
+  $("toggleBreakdown").addEventListener("click", () => {
+    showBreakdown = !showBreakdown;
+    $("toggleBreakdown").textContent = showBreakdown ? "Скрыть расчёт ▴" : "Показать расчёт ▾";
+    $("breakdown").classList.toggle("hidden", !showBreakdown);
+    calc();
+  });
+
+  function calc() {
+    const hourlyRate = num("hourlyRate"), hours = num("hours"), pieceRate = num("pieceRate");
+    const masterMarginShare = num("masterMarginShare"), partsCost = num("partsCost");
+    const rentMonthly = num("rentMonthly"), ordersMonthly = num("ordersMonthly");
+    const taxPercent = num("taxPercent"), acquiringPercent = num("acquiringPercent"), marginPercent = num("marginPercent");
+
+    const rentPerOrder = ordersMonthly > 0 ? rentMonthly / ordersMonthly : 0;
+    $("rentHint").textContent = "≈ " + fmt(rentPerOrder) + " BYN накладных на один заказ";
+
+    const directMasterCost = masterType === "hourly" ? hourlyRate * hours : masterType === "piece" ? pieceRate : 0;
+    const fixedCosts = partsCost + rentPerOrder + directMasterCost;
+    const deductionPercent = taxPercent + acquiringPercent + marginPercent;
+    const valid = deductionPercent < 100;
+    const price = valid ? fixedCosts / (1 - deductionPercent / 100) : null;
+
+    $("priceBlock").classList.toggle("hidden", !valid);
+    $("errorBlock").classList.toggle("hidden", valid);
+
+    if (!valid) { $("breakdown").innerHTML = ""; return; }
+
+    const taxAmount = (price * taxPercent) / 100;
+    const acqAmount = (price * acquiringPercent) / 100;
+    const marginAmount = (price * marginPercent) / 100;
+    let masterAmount = directMasterCost, ownerAmount = marginAmount;
+    if (masterType === "margin_share") {
+      masterAmount = (marginAmount * masterMarginShare) / 100;
+      ownerAmount = marginAmount - masterAmount;
+    }
+
+    $("priceOut").innerHTML = fmt(price) + " <small>BYN</small>";
+
+    if (showBreakdown) {
+      const rows = [
+        ["Мастер", masterAmount],
+        ["Запчасти", partsCost],
+        ["Аренда на заказ", rentPerOrder],
+        ["Налог", taxAmount],
+        ["Эквайринг", acqAmount],
+        ["Ваша прибыль", ownerAmount],
+      ];
+      $("breakdown").innerHTML = rows.map(([k, v]) => `<div class="r"><span>${k}</span><span>${fmt(v)} BYN</span></div>`).join("");
+    }
+  }
+
+  document.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", calc));
+  calc();
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+  }
+})();
+</script>
+</body>
+</html>
